@@ -8,17 +8,15 @@
 /////////////////////////
 
 // Alter this to match the incoming webhook url provided by Slack
-var slackIncomingWebhookUrl = 'https://hooks.slack.com/services/YOUR-URL-HERE';
+var slackIncomingWebhookUrl = 'https://webhook-url';
 
 // Include # for public channels, omit it for private channels
-var postChannel = "YOUR-CHANNEL-HERE";
+var postChannel = "#channel-name";
 
-var postIcon = ":mailbox_with_mail:";
-var postUser = "Form Response";
+var postIcon = ":star:";
 var postColor = "#0000DD";
 
-var messageFallback = "The attachment must be viewed as plain text.";
-var messagePretext = "A user submitted a response to the form.";
+var messageFallback = "Standup in cyber space";
 
 ///////////////////////
 // End customization //
@@ -44,11 +42,13 @@ function submitValuesToSlack(e) {
   //   messagePretext = "Debugging our Sheets to Slack integration";
   // }
 
-  var attachments = constructAttachments(e.values);
+  var aliasAndAttachments = constructAliasAndAttachments(e.values);
+  var alias = aliasAndAttachments[0];
+  var attachments = aliasAndAttachments[1];
 
   var payload = {
     "channel": postChannel,
-    "username": postUser,
+    "username": alias,
     "icon_emoji": postIcon,
     "link_names": 1,
     "attachments": attachments
@@ -62,11 +62,17 @@ function submitValuesToSlack(e) {
   var response = UrlFetchApp.fetch(slackIncomingWebhookUrl, options);
 }
 
-// Creates Slack message attachments which contain the data from the Google Form
-// submission, which is passed in as a parameter
+
+// Creates an array containing the submitter's alias and Slack message attachments which 
+// contain the data from the Google Form submission, which is passed in as a parameter
 // https://api.slack.com/docs/message-attachments
-var constructAttachments = function(values) {
-  var fields = makeFields(values);
+var constructAliasAndAttachments = function(values) {
+  var aliasAndTsAndFields = makeAliasAndTsAndFields(values);
+  var alias = aliasAndTsAndFields[0];
+  var timestamp = aliasAndTsAndFields[1];
+  var fields = aliasAndTsAndFields[2];
+
+  var messagePretext = ''.concat('*[Slackup]*\n', 'On ', timestamp, ', *', alias, '* says');
 
   var attachments = [{
     "fallback" : messageFallback,
@@ -74,24 +80,36 @@ var constructAttachments = function(values) {
     "mrkdwn_in" : ["pretext"],
     "color" : postColor,
     "fields" : fields
-  }]
+  }];
 
-  return attachments;
+  return [alias, attachments];
 }
 
-// Creates an array of Slack fields containing the questions and answers
-var makeFields = function(values) {
+// Creates an array containing submitter's alias, submission timestamp, and an 
+// array of Slack fields containing the questions and answers
+var makeAliasAndTsAndFields = function(values) {
   var fields = [];
+  var alias = '';
+  var timestamp = '';
 
   var columnNames = getColumnNames();
 
   for (var i = 0; i < columnNames.length; i++) {
     var colName = columnNames[i];
     var val = values[i];
-    fields.push(makeField(colName, val));
+
+    if (colName == 'Timestamp') {
+      timestamp = val;
+    }
+    else if (colName == 'Email Address') {
+      alias = val.substring(0, val.lastIndexOf("@")+1);
+    }
+    else {
+      fields.push(makeField(colName, val));
+    }
   }
 
-  return fields;
+  return [alias, timestamp, fields];
 }
 
 // Creates a Slack field for your message
