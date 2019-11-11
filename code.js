@@ -46,6 +46,9 @@ function submitValuesToSlack(e) {
   var alias = aliasAndAttachments[0];
   var attachments = aliasAndAttachments[1];
 
+  // Some basic input sanitization
+  if (!alias || !attachments) return;
+
   var payload = {
     "channel": postChannel,
     "username": alias,
